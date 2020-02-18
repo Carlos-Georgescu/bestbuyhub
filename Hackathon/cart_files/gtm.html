@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!-- saved from url=(0307)https://secure.checkout.visa.com/checkout-widget/gtm?apikey=8XVRY1263WCYYAFYQRRO14PCn9VCfv9Gd_CIbEACyJSLedwjM&externalClientId=&externalProfileId=&parentUrl=https%3A%2F%2Fwww.bestbuy.ca%2Fen-ca%2Fbasket&locale=en-CA&browserLocale=&countryCode=CA&allowCXO=false&buttonPosition=&postmessage=true&allowRXO=true -->
+<html lang="en"><link type="text/css" id="dark-mode" rel="stylesheet" href="https://secure.checkout.visa.com/checkout-widget/gtm?apikey=8XVRY1263WCYYAFYQRRO14PCn9VCfv9Gd_CIbEACyJSLedwjM&amp;externalClientId=&amp;externalProfileId=&amp;parentUrl=https%3A%2F%2Fwww.bestbuy.ca%2Fen-ca%2Fbasket&amp;locale=en-CA&amp;browserLocale=&amp;countryCode=CA&amp;allowCXO=false&amp;buttonPosition=&amp;postmessage=true&amp;allowRXO=true"><style type="text/css" id="dark-mode-custom-style"></style><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="referrer" content="origin-when-cross-origin">
+    <title>VME GTM</title>
+
+    <script type="text/javascript" async="" src="./analytics.js.download" nonce=""></script><script async="" src="./gtm.js.download"></script><script type="text/javascript" nonce="">
+        var _param = function (name) {
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+                results = regex.exec(window.location.search);
+            return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+        };
+
+        var addEvent = function (element, event, callback) {
+            if (element.addEventListener) {
+                element.addEventListener(event, callback, false);
+            } else if (element.attachEvent) {
+                element.attachEvent('on' + event, callback);
+            }
+            return element;
+        }
+
+         var stringifyGtmData = function(data){
+            Object.keys(data).forEach(function(key){
+                if(typeof data[key] === "object"){
+                    data[key] = JSON.stringify(data[key]);
+                }
+            });
+            return data;
+        }
+
+        var receivePostMessage = function(event) {
+            try {
+                var parentUrl = _param('parentUrl').split('/', 3).join('/');
+                if (event.origin === parentUrl && event.data && typeof event.data === "object" && event.data.gtm) {
+                    delete event.data["gtm"];
+                    stringifyGtmData(event.data)
+                    pushToDataLayer(event.data);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        var pushToDataLayer = function(data, checkAttemptCount){
+            if(checkAttemptCount === null){
+                checkAttemptCount = 10;
+            }
+
+            if (!!vxo_data_layer) {
+                vxo_data_layer.push(data);
+            } else if (--checkAttemptCount >= 0) {
+                setTimeout(pushToDataLayer.bind(data, checkAttemptCount), 50);
+            } else {
+                console && console.warn("VXO data layer not defined -- GTM impresssion not logged.");
+            }
+        }
+
+        addEvent(window, 'message', receivePostMessage);
+
+    </script>
+
+</head>
+<body>
+
+
+<noscript>
+    <iframe src="//www.googletagmanager.com/ns.html?id=DERT546"
+            height="0" width="0" style="display:none;visibility:hidden"></iframe>
+</noscript>
+
+<script nonce="">(function (w, d, s, l, i) {
+    w[l] = w[l] || [];
+    w[l].push({
+        'gtm.start': new Date().getTime(), event: 'gtm.js'
+    });
+    var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
+    j.async = true;
+    j.src =
+        '//www.googletagmanager.com/gtm.js?id=' + i + dl;
+    f.parentNode.insertBefore(j, f);
+})(window, document, 'script', 'vxo_data_layer', "GTM-KD2D59");</script>
+
+<script type="text/javascript">var _cf = _cf || []; _cf.push(['_setFsp', true]); _cf.push(['_setBm', true]); _cf.push(['_setAu', '/public/a6de488b2173b3c76f356a0ac2319']);</script><script type="text/javascript" src="./a6de488b2173b3c76f356a0ac2319"></script>
+
+
+</body></html>

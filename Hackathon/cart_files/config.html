@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<!-- saved from url=(0310)https://secure.checkout.visa.com/checkout-widget/config?apikey=8XVRY1263WCYYAFYQRRO14PCn9VCfv9Gd_CIbEACyJSLedwjM&externalClientId=&externalProfileId=&parentUrl=https%3A%2F%2Fwww.bestbuy.ca%2Fen-ca%2Fbasket&locale=en-CA&browserLocale=&countryCode=CA&allowCXO=false&buttonPosition=&postmessage=true&allowRXO=true -->
+<html><link type="text/css" id="dark-mode" rel="stylesheet" href="https://secure.checkout.visa.com/checkout-widget/config?apikey=8XVRY1263WCYYAFYQRRO14PCn9VCfv9Gd_CIbEACyJSLedwjM&amp;externalClientId=&amp;externalProfileId=&amp;parentUrl=https%3A%2F%2Fwww.bestbuy.ca%2Fen-ca%2Fbasket&amp;locale=en-CA&amp;browserLocale=&amp;countryCode=CA&amp;allowCXO=false&amp;buttonPosition=&amp;postmessage=true&amp;allowRXO=true"><style type="text/css" id="dark-mode-custom-style"></style><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <script type="text/javascript" nonce="">
+            'use strict';
+            var ENUMS = {
+    CORRELATION_ID: 'correlationId',
+    VISIT_ID: 'visitId',
+    CONFIG_METRICS: 'config'
+};
+
+            /* util function to extract param from URL*/
+/* IMPORTANT - Only use ES5 syntax in this file as it will be included as an inline javascript in the html*/
+
+var _param = function (name) {
+    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(window.location.search);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+};
+
+var randomString = function(length, chars) {
+    var mask = '';
+    if (chars.indexOf('a') > -1) mask += 'abcdefghijklmnopqrstuvwxyz';
+    if (chars.indexOf('A') > -1) mask += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (chars.indexOf('#') > -1) mask += '0123456789';
+    if (chars.indexOf('!') > -1) mask += '~`!@#$%^&*()_+-={}[]:";\'<>?,./|\\';
+    var result = '';
+    for (var i = length; i > 0; --i) result += mask[Math.round(Math.random() * (mask.length - 1))];
+    return result;
+};
+
+/* source: http://stackoverflow.com/questions/13747093/faster-and-shorter-way-to-check-if-a-cookie-exists */
+var _cookieExists = function (name, value) {
+    if (document.cookie.indexOf(name) == 0) //Match without a ';' if its the first
+        return -1 < document.cookie.indexOf(value ? name + "=" + value + ";" : name + "=");
+    else if (value && document.cookie.indexOf("; " + name + "=" + value) + name.length + value.length + 3 == document.cookie.length) //match without an ending ';' if its the last
+        return true;
+    else { //match cookies in the middle with 2 ';' if you want to check for a value
+        return -1 < document.cookie.indexOf("; " + (value ? name + "=" + value + ";" : name + "="));
+    }
+};
+
+var _getCookie = function (name, parse) {
+    var pattern = RegExp(name + "=.[^;]*"),
+        matched = document.cookie.match(pattern);
+
+    if (matched) {
+        var cookie = matched[0].split('=');
+
+        if (parse) {
+            var parsed;
+            try {
+                parsed = JSON.parse(decodeURIComponent(cookie[1]));
+            } catch (e) {
+                // console.error('Couldn\'t parse cookie value for: ' + name);
+            }
+            return parsed;
+        }
+
+        return cookie[1];
+    }
+};
+
+var _extend = function (){
+    return Array.prototype.reduce.call(arguments, function(out, obj){
+        Object.keys(obj).forEach(function(key){
+            out[key] = obj[key];
+        });
+        return out;
+    })
+};
+
+var canUseWebstorage = function() {
+    var canUse = false;
+    try {
+        localStorage.setItem('test', 'test');
+        localStorage.removeItem('test');
+        canUse = true;
+    } catch (e) {}
+    return canUse;
+};
+
+var setRxoStorageIdsAndFlags = function(canDropCookie, visitId, correlationId, showRxoPopup, allowEXO) {
+    try {
+        if (canDropCookie) {
+            sessionStorage.setItem(ENUMS.VISIT_ID, visitId);
+            sessionStorage.setItem(ENUMS.CORRELATION_ID, correlationId);
+            sessionStorage.setItem('showRxoPopup', showRxoPopup);
+            sessionStorage.setItem('allowMiniRXO', true);
+            sessionStorage.setItem('allowEXO', allowEXO);
+        }
+    } catch(e) {
+        console.warn(e);
+    }
+};
+
+var SSI_ENABLED = 'ssiEnabled',
+    SSI_DECLINED = 'ssiDeclined',
+    ERM_ENABLED = 'ermEnabled';
+
+// Try determining latest ssi store value first then make it available in the form of getItem(key)
+var _getSsiStore = function() {
+
+    var MIN_TIME = -8640000000000000,
+        ssiTime = MIN_TIME,
+        ssi = undefined;
+
+    try {
+        var cookieSsiEnabled = _getCookie(SSI_ENABLED, true),
+            cookieSsiDeclined = _getCookie(SSI_DECLINED, true),
+            localStorageSsiEnabled = window.localStorage.getItem(SSI_ENABLED),
+            localStorageSsiDeclined = window.localStorage.getItem(SSI_DECLINED);
+
+        var cookieSsiEnabledTime = cookieSsiEnabled ? parseInt(cookieSsiEnabled.date, 10) : MIN_TIME;
+        var cookieSsiDeclinedTime = cookieSsiDeclined ? parseInt(cookieSsiDeclined, 10) : MIN_TIME;
+        var localStorageSsiEnabledTime = localStorageSsiEnabled ? parseInt(JSON.parse(decodeURIComponent(localStorageSsiEnabled)).date, 10) : MIN_TIME;
+        var localStorageSsiDeclinedTime = localStorageSsiDeclined ? parseInt(localStorageSsiDeclined, 10) : MIN_TIME;
+
+        if(cookieSsiEnabledTime > ssiTime) {
+            ssiTime = cookieSsiEnabledTime;
+            ssi = SSI_ENABLED;
+        }
+        if(cookieSsiDeclinedTime > ssiTime) {
+            ssiTime = cookieSsiDeclinedTime;
+            ssi = SSI_DECLINED;
+        }
+        if(localStorageSsiEnabledTime > ssiTime) {
+            ssiTime = localStorageSsiEnabledTime;
+            ssi = SSI_ENABLED;
+        }
+        if(localStorageSsiDeclinedTime > ssiTime) {
+            ssiTime = localStorageSsiDeclinedTime;
+            ssi = SSI_DECLINED;
+        }
+    } catch (e) { /* Malformed data. */ }
+
+    // Ensure latest of ssiEnabled or ssiDeclined is returned based on the key.
+    return {
+        getItem: function(key) {
+            var returnObj;
+            if (SSI_ENABLED === key && SSI_ENABLED === ssi) {
+                returnObj = { date: ssiTime };
+            } else if (SSI_DECLINED === key && SSI_DECLINED === ssi) {
+                returnObj = ssiTime;
+            }
+            return returnObj;
+        }
+    }
+};
+
+var getSsiStatus = function() {
+    var isValidAndNotExpired = function(ssiObj) {
+        var _isValid = false;
+        try {
+            ssiObj = (typeof ssiObj === 'string') ? JSON.parse(ssiObj) : ssiObj;
+            if (ssiObj && ssiObj.date) {
+                var savedTime = parseInt(ssiObj.date, 10);
+                if (isNaN(savedTime) || savedTime === 0) {
+                    _isValid = false; // invalid
+                } else {
+                    _isValid = (savedTime >= (+new Date()));
+                }
+            }
+        } catch(e) {/* malformed data */}
+
+        return _isValid;
+    }, _status = 'undefined';
+
+    var ssiStore = _getSsiStore();
+
+    if (ssiStore) {
+        if (isValidAndNotExpired(ssiStore.getItem('ssiEnabled'))) {
+            _status = 'OPTED_IN';
+        } else if (isValidAndNotExpired({ date: ssiStore.getItem('ssiDeclined') })) {
+            _status = 'OPTED_OUT';
+        }
+    }
+    return _status;
+};
+
+var getErmStatus = function() {
+    return document.cookie.indexOf('ermEnabled') > -1 ? 'OPTED_IN' : 'undefined';
+};
+
+var canDoSSIStorage = function() {
+    return (getSsiStatus() === 'OPTED_IN') && canUseWebstorage();
+};
+
+/**
+ * Sample for valid sessionId
+ * vme_qa_001H4y_zNlNbz_zANeNGlENqYcuRt6H6rags0NlCAs7N10tPzQUjQJiLeCZsn_zPY9Xfd3YA61Lc3WbqbCy8rpwFU3T_U
+ */
+var validateSessionIdFormat = function(sessionId) {
+  if (!sessionId) {
+    return false;
+  } else {
+    var parts    = sessionId.split('_'),
+        appName  = parts[0],
+        env      = parts[1],
+        serverId = !!parts[2] && (parts[2].match(/^\d+/g) || [])[0],
+        prefix   = appName + "_" + env + "_" + serverId,
+        generatedId = sessionId.replace(prefix, '');
+    return (
+      sessionId.length <= 100 &&
+      appName && appName === 'vme' &&
+      env && ['prod', 'qa', 'dev'].indexOf(env) > -1 &&
+      serverId &&
+      prefix.length <= 12  &&
+      generatedId.indexOf('=') < 0 && generatedId.indexOf('/+') < 0
+    )
+  }
+};
+            /*
+  Class for managing interactions with the GTM dataLayer
+*/
+var GTM = (function() {
+  var GTM_PUSH_EVENT = "pushGtmData--",
+      _postMessageTarget;
+
+  var _postMsgToTarget = function(message) {
+    var msg = GTM_PUSH_EVENT + JSON.stringify(message);
+    window.parent.postMessage(msg, _postMessageTarget);
+  };
+
+  // Push the event into the dataLayer via the GTM iframe
+  var _push = function(data) {
+    if (data) {
+      data.gtm = true;
+      _postMsgToTarget(data);
+    }
+  };
+
+  var _init = function(options) {
+    _postMessageTarget = options.postMessageTarget;
+    return this;
+  };
+
+  return {
+    init: _init,
+    push: _push
+  };
+}());
+
+            /*
+  Class for managing metrics. Different sets of metrics
+  can be stored under separate keys (e.g. the 'config'
+  key will track config API metrics, etc.)
+*/
+var Metrics = (function() {
+  var _metrics = {};
+
+  var _getMetricsByKey = function(key) {
+    return _metrics[key];
+  };
+
+  var _getMetrics = function() {
+    return _metrics;
+  };
+
+  var _setStartTime = function(key) {
+    var metrics = _metrics[key];
+    if (metrics) {
+      metrics.start = +new Date();
+    }
+  };
+
+  var _setEndTime = function(key) {
+    var metrics = _metrics[key];
+    if (metrics) {
+      metrics.end = +new Date();
+    }
+  };
+
+  var _initMetric = function(key, data) {
+    data = data || {};
+    if (key) {
+      _metrics[key] = data;
+    }
+  };
+
+  return {
+    initMetric: _initMetric,
+    setStartTime: _setStartTime,
+    setEndTime: _setEndTime,
+    getMetricsByKey: _getMetricsByKey,
+    getMetrics: _getMetrics
+  };
+}());
+
+
+            
+            var VISA_GLOBALS = {"countryCodeFromIp":"CA","cxoEnvConfig":{"availableWallets":"{\"androidPay\":{\"adapterUrl\":\"https:\/\/payments.google.com\/payments\/apis\/instantbuy\/serving\/pr\/js\/vco.js\",\"instance\":\"com.google.androidPay\",\"payName\":\"Android Pay\",\"vClientID\":\"6f1661d1-8b63-4565-847f-7816e3ccb206\"},\"samsungPay\":{\"adapterUrl\":\"https:\/\/spay.samsung.com\/ecomm\/ew\/v1\/vco\/js\/spayVisaPaymentAdapter.js\",\"instance\":\"samsungPay\",\"payName\":\"Samsung Pay\",\"vClientID\":\"42eaea7b-046d-4bb1-9e1d-7fdead7599e6\"}}","browsersMap":"{\"chrome\":[\"androidPay\",\"samsungPay\"],\"sbrowser\":[\"samsungPay\"]}","timeoutDuration":"3000","walletChromeEligibleVersion":"57","httpSupport":"false"},"rxoExclusion":false,"browserLocale":"en_US","passwordlessEnrollment":null,"srcEnvConfig":{"isSRCflowEnabled":"true","supportedCountries":"","supportedBrowsers":"","sessionId":"vme_prod_001sGdofv_Mj7skXq50xuR3OI_wvD_IT6W8kDzVHNq7n0J0hhmENW0PIAhCnOeukixbmSo8AKOZd1kAkn16Nc3ax7vj","policyVersion":1,"isCookieConsentEnabled":"true","cert":{"kid":"8b6b5e6c","name":"prod-src-rsa-enc-1","publicKey":{"e":65537,"n":"00:90:fb:a3:c1:52:63:7a:f2:3f:a1:e6:70:66:80:36:5a:3b:7d:e0:31:5c:32:f4:42:69:bf:22:46:21:06:ac:67:ca:5a:d3:42:c1:06:24:ca:5c:ae:46:80:7a:d7:97:18:9b:60:55:6e:fa:0a:1f:c6:32:bf:46:82:dd:dc:1a:87:a5:26:39:d2:6c:ce:62:f4:a5:5f:dc:6f:1f:ed:5f:35:a0:62:0d:ec:60:db:29:d2:c0:71:50:57:10:d4:0e:83:55:bc:8e:c7:12:5b:9a:7c:25:1c:61:39:7e:4b:b3:26:bf:aa:aa:e9:77:46:cc:2c:08:6f:af:3e:b8:7f:fb:ed:bf:45:28:a9:6b:d9:55:af:d8:2f:7c:8e:00:6c:50:01:2d:3a:8a:7a:da:34:ad:63:db:20:12:9d:85:c1:90:ec:93:0f:c7:3a:bc:db:7f:4a:3d:46:5f:4b:23:6e:78:07:1d:2f:ec:87:00:38:b7:2f:65:52:cd:d1:7b:b5:2e:ec:8b:7b:9e:fc:81:68:5c:3a:5b:82:0b:05:c6:f1:2d:ef:d5:25:04:33:81:b1:a8:1c:fe:6b:3d:fd:9b:18:94:96:8a:09:3f:19:8f:08:5a:90:ca:3f:f9:97:5c:f7:b9:ae:75:58:f5:8f:3d:bf:2f:99:78:97:fc:e2:6c:5e:6b:8b"}}},"cookiePolicyVersion":1,"rxoInternalWhitelist":false,"exoMutationObserverWhitelisted":false,"isEuroIp":false,"vdcpAbTestingWeightedProbabilityValue":0,"rxoPopup":true,"gtmContainerId":"GTM-KD2D59","isChassisFlowEnabled":"false","correlationId":"1_1580547062_866_622_l73p123_CHECKOUT-WIDGET","isCookieConsentEnabled":"true","isInternalIp":false,"exoInternalWhitelist":false,"enableSVGInternal":"false"};
+            try {
+                VISA_GLOBALS.cxoEnvConfig.availableWallets = JSON.parse(VISA_GLOBALS.cxoEnvConfig.availableWallets);
+            } catch (ex) {
+                VISA_GLOBALS.cxoEnvConfig.availableWallets = {}
+                // missing chassis config
+            }
+            VISA_GLOBALS.allowPreload = true;
+
+            
+            var vxo_data_layer,
+                paramCId = _param('correlationId'),
+                correlationId = (paramCId || VISA_GLOBALS.correlationId),
+                visitId = 'VID_' + correlationId,
+                isHybrid = _param('isHybrid') !== '',
+                isSRCflow = VISA_GLOBALS.srcEnvConfig.isSRCflowEnabled;
+
+            if(canUseWebstorage() && isHybrid) {
+                var currentCorrelationId = localStorage.getItem(ENUMS.CORRELATION_ID);
+                if (currentCorrelationId) {
+                    correlationId = currentCorrelationId;
+                    sessionStorage.setItem(ENUMS.CORRELATION_ID, correlationId);
+                } else {
+                    localStorage.setItem(ENUMS.CORRELATION_ID, correlationId);
+                }
+
+                var currentVisitId = localStorage.getItem(ENUMS.VISIT_ID);
+                if (currentVisitId) {
+                    visitId = currentVisitId;
+                    localStorage.removeItem(ENUMS.VISIT_ID);
+
+                    sessionStorage.setItem(ENUMS.VISIT_ID, visitId);
+                } else {
+                    localStorage.setItem(ENUMS.VISIT_ID, visitId);
+                }
+
+                VISA_GLOBALS.correlationId = correlationId;
+            }
+
+            var EU_COUNTRY_CODES = [
+                "BE", "BG", "CZ", "DK", "DE", "EE", "IE",
+                "EL", "GR", "ES", "FR", "HR", "IT", "CY",
+                "LV", "LT", "LU", "HU", "MT", "NL", "AT",
+                "PL", "PT", "RO", "SI", "SK", "FI", "SE",
+                "UK", "GB", "NO", "IS", "LI"
+            ];
+
+            
+            var _parentUrl = _param('parentUrl');
+            var _postMessageTarget = _parentUrl.split('/', 3).join('/');
+            var _apikey = _param('apikey');
+
+            
+            var _userRemembered = _cookieExists('username') && _cookieExists('_art');
+
+            //
+            var _ermEnabled = _cookieExists('ermEnabled');
+            var remembermeType = _ermEnabled ? 'ERM': 'legacy';
+
+            //
+            var srcSystem = 'VISA';
+
+            
+            var _isRecognized = _cookieExists('username');
+            var _isAlwaysRemember = _getCookie('alwaysRemember', true) === true;
+
+            var _isReturningUser = _cookieExists('username') || _cookieExists('_art') || _cookieExists('country_preference') || _cookieExists('visited');
+
+            // initialize the GTM helper (js/gtm.js)
+            GTM.init({
+              postMessageTarget: _postMessageTarget
+            });
+
+            // initialize the Metrics helper (js/metrics.js)
+            Metrics.initMetric(ENUMS.CONFIG_METRICS);
+
+            
+            var _appendPrefetchLink = function(theUri) {
+                var theLink = document.createElement('link');
+                theLink.setAttribute('rel', 'prefetch');
+                theLink.setAttribute('href', theUri);
+                document.head.appendChild(theLink);
+            };
+
+            var _preloadRxoAssets = function() {
+                _appendPrefetchLink("/checkout-widget/resources/css/bundle-rxo.min.d89641da59c61f0b1add1097e30c7178.css");
+                _appendPrefetchLink("/checkout-widget/resources/js/bundle-common.min.12da06ec9c0ca031e7673b9139bd9d6a.js");
+                _appendPrefetchLink("/checkout-widget/resources/js/bundle-rxo.min.c383b8dbb281929f8c38d5721fc70680.js");
+            };
+
+            var _preloadCXOAssets = function() {
+                try {
+                    if (_isCXOEligibleDevice()) {
+                        var supportedPays = getSupportedPays(),
+                            paysMetaData = VISA_GLOBALS.cxoEnvConfig.availableWallets || {},
+                            numPays = supportedPays.length || 0;
+
+                        for (var i = 0; i < numPays; i++) {
+                            var meta = paysMetaData[supportedPays[i]] || {};
+                            if (meta.adapterUrl) {
+                                _appendPrefetchLink(meta.adapterUrl);
+                            }
+                        }
+                        //_appendPrefetchLink("/checkout-widget/resources/launcher/js/vendor.js");
+                        //_appendPrefetchLink("/checkout-widget/resources/launcher/js/app.js");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            };
+
+
+            var _neverConsented = function() {
+                var hasConsented = _getCookie('hasConsented', true);
+                return (hasConsented === null || hasConsented === undefined);
+            };
+
+            
+            var _hasConsented = function() {
+                var hasConsented = _getCookie('hasConsented', true);
+
+                if (!hasConsented) {
+                return false;
+                }
+
+                return (hasConsented.policyVersion === VISA_GLOBALS.cookiePolicyVersion && hasConsented.consent === true);
+            };
+
+            var _hasConsentedCookieShowsConsent = function(requireConsent) {
+                var ret = false;
+                var hasConsented = _getCookie('hasConsented', true);
+
+                if (hasConsented) {
+                    if (requireConsent) {
+                        ret = hasConsented.optedIn &&
+                            hasConsented.policyVersion == VISA_GLOBALS.cookiePolicyVersion;
+                    } else {
+                        ret = hasConsented.optedIn;
+                    }
+                } else if (!requireConsent) {
+                    ret = true;
+                }
+                return ret;
+            };
+
+            var _hasOptedIn = function() {
+                return _hasConsentedCookieShowsConsent(true);
+            };
+
+            var _requireConsent = function(countryCode) {
+                return VISA_GLOBALS.isEuroIp || EU_COUNTRY_CODES.indexOf(countryCode) > -1;
+            };
+
+            // EU cookie consent compliance check.
+            var _getCanDropCookies = function(countryCode) {
+                var ret = true;
+                if(VISA_GLOBALS.isCookieConsentEnabled){
+                    ret = _hasConsentedCookieShowsConsent(_requireConsent(countryCode));
+                }
+                return ret;
+            };
+
+            var _getCanShowCookieBanner = function(countryCode) {
+                return VISA_GLOBALS.isCookieConsentEnabled && _requireConsent(countryCode) && !_hasOptedIn() && !_hasConsented();
+            };
+
+            
+            var _isExoButtonSupported = function(canDropCookies) {
+
+                if (typeof Modernizr === "undefined") {
+                    return false;
+                }
+
+                var navU = navigator.userAgent;
+                // iOS7 exclusion
+                var isIOS7 = (/os 7.*like mac os x/i).test(navU);
+
+                //EXO needs boxshadow, cssanimations, csstransitions, canvas, and placeholder APIs to run
+                return (
+                    canDropCookies
+                    && !_isAndroidBrowser()
+                    && !isIOS7
+                    && Modernizr.boxshadow
+                    && Modernizr.cssanimations
+                    && Modernizr.csstransitions
+                    && Modernizr.canvas
+                    && Modernizr.placeholder
+                );
+            };
+
+            var _isAndroidBrowser = function() {
+                var navU = navigator.userAgent;
+                // Android Mobile
+                var isAndroidBrowser = false;
+
+                var isAndroidMobile = navU.indexOf('Android') > -1 && navU.indexOf('Mozilla/5.0') > -1 && navU.indexOf('AppleWebKit') > -1;
+                if(isAndroidMobile){
+                    // Apple webkit
+                    var regExAppleWebKit = new RegExp(/AppleWebKit\/([\d.]+)/);
+                    var resultAppleWebKitRegEx = regExAppleWebKit.exec(navU);
+                    var appleWebKitVersion = (resultAppleWebKitRegEx === null ? null : parseFloat(regExAppleWebKit.exec(navU)[1]));
+
+                    // Chrome
+                    var regExChrome = new RegExp(/Chrome\/([\d.]+)/);
+                    var resultChromeRegEx = regExChrome.exec(navU);
+                    var chromeVersion = (resultChromeRegEx === null ? null : parseFloat(regExChrome.exec(navU)[1]));
+                    // EXO is not supported for native android browsers
+                    isAndroidBrowser = isAndroidMobile && (appleWebKitVersion !== null && appleWebKitVersion < 537) || (chromeVersion !== null && chromeVersion < 37);
+                }
+
+                return isAndroidBrowser;
+            };
+
+            
+            var _canLaunchExo = function(supportExo, config) {
+                return supportExo && (config.allowEXO || VISA_GLOBALS.exoInternalWhitelist || config.merchantConfig.buttonAnimationEnabled);
+            };
+
+            
+            var _allowFullExo = function(supportExo, config) {
+                if (!supportExo) { return false; }
+
+                return (config.allowEXO || VISA_GLOBALS.exoInternalWhitelist);
+            };
+
+            var _isMerchantOnPreloadWhitelist = function(config) {
+                var rxoMetaPreload = false,
+                    checkForRxoPreloadTrue = function(item) {
+                        if((item.name === "rxo.preload") && (item.value === "true")){
+                            rxoMetaPreload = true;
+                        }
+                    },
+                    metadataPropertiesArray = !!(config.metadata && Array.isArray(config.metadata.properties)) ? config.metadata.properties : [];
+
+                metadataPropertiesArray.forEach(checkForRxoPreloadTrue);
+                return rxoMetaPreload;
+            };
+
+            var _checkResult = function(config, key, validator){
+                var metadataPropertiesArray = !!(config.metadata && Array.isArray(config.metadata.properties)) ? config.metadata.properties : [];
+                var result = false;
+                for(var i=0; i<metadataPropertiesArray.length ;i++){
+                    var item = metadataPropertiesArray[i];
+                    if(item && item.name===key &&  validator(item)){
+                        result = true;
+                        break;
+                    }
+                }
+                return result;
+            }
+
+            
+            var _isPreloadAllowed = function(isMerchantOnPreloadWhitelist) {
+                if (!VISA_GLOBALS.allowPreload || !VISA_GLOBALS.isInternalIp) { return false; }
+                return isMerchantOnPreloadWhitelist;
+            };
+
+            
+            var _isChassisEnabledByMerchant = function(config) {
+                return config.enableChassis && !config.enableThreeDS;
+            };
+
+            
+            var _isChassisEnabledByMerchantAndVisa = function(chassisEnabledMerchant, visaEnableChassisFlag) {
+                var isCXOEnabledDevice = _isCXOEnabledDevice(chassisEnabledMerchant);
+                return visaEnableChassisFlag && isCXOEnabledDevice;
+            };
+
+            
+            var _isCobrandEnabledByMerchant = function(enableChassisCobrand, isCXOEnabled) {
+                return isCXOEnabled && enableChassisCobrand;
+            };
+
+            
+            var _isSVGDisabledByMerchant = function(disableSVGButton) {
+                return disableSVGButton ? true : false;
+            };
+
+            
+            var _isSVGAnimationDisabledByMerchant = function(disableSVGButtonAnimation) {
+                return disableSVGButtonAnimation ? true : false;
+            };
+
+            
+            var _isCountryAllowsFingerprint = function(countryAllowsFingerprint) {
+                return countryAllowsFingerprint ? true : false;
+            };
+
+            
+            var _canUseAnimatedButton = function(launchEXO, allowEXO) {
+                return launchEXO && !allowEXO;
+            };
+
+            var _getPayInfoFromPaysMeta = function (vClientID) {
+                try {
+                    var paysMetaData = VISA_GLOBALS.cxoEnvConfig.availableWallets;
+                    for (var key in paysMetaData) {
+                        if (vClientID && paysMetaData[key].vClientID === vClientID) {
+                            return key;
+                        }
+                    }
+                } catch (e) {
+                    console.error(e);
+                    return null;
+                }
+
+                return null;
+            }
+
+            function getPayNameFromPaysMeta(selectedPay) {
+                if (!!selectedPay) {
+                    try {
+                        var paysMetaData = VISA_GLOBALS.cxoEnvConfig.availableWallets;
+                        var payInfo = paysMetaData[selectedPay];
+                        return Object.keys(payInfo).length ? payInfo.payName : selectedPay;
+                    } catch (e) {
+                        console.error(e);
+                        return selectedPay;
+                    }
+                }
+
+                return '';
+            }
+
+            
+            var _getLastPay = function() {
+                var _artCookie = _getCookie('_art');
+                var partnerName = null;
+
+                if (!!_artCookie) {
+                    var cardInfo = _artCookie.split('|'),
+                        cardArtVer = cardInfo[0],
+                        vClientID = cardInfo[6];
+
+                    if (!!vClientID && cardArtVer == 2) {
+                        partnerName = _getPayInfoFromPaysMeta(vClientID);
+                    } else if (cardArtVer === 1) {
+                        partnerName = 'visaCheckout';
+                    }
+                }
+                return partnerName;
+            };
+
+            
+            function _getUserAgent () {
+                var ua = window.navigator.userAgent;
+                return !!ua ? ua.toLowerCase() : '';
+            }
+
+            
+            function _getChromeVersion() {
+                var raw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
+                return raw ? parseInt(raw[2], 10) : false;
+            }
+
+            
+            function _isAndroidMobile() {
+                var ua = _getUserAgent();
+                return ua.indexOf('android') > -1 && ua.indexOf('mozilla/5.0') > -1 && ua.indexOf('applewebkit') > -1;
+            }
+
+            function _isStockBrowser() {
+              return navigator.userAgent.match(/SamsungBrowser/i);
+            }
+
+            
+            function _isChromeBrowser() {
+                return !!window.chrome;
+            }
+
+            function getCXOChromeSupportedVer() {
+                return VISA_GLOBALS.cxoEnvConfig.walletChromeEligibleVersion || 57;
+            }
+
+            function _isCXOEligibleDevice() {
+                return _isAndroidMobile() && ((_isChromeBrowser() && _getChromeVersion() >= getCXOChromeSupportedVer()) || _isStockBrowser() );
+            }
+
+            
+            function _isCXOEnabledDevice (enableChassis) {
+                return enableChassis && _isCXOEligibleDevice();
+            }
+
+            
+            function _isCobrandDisplayed(enableChassisCobrand) {
+                var cobrandEnabled = enableChassisCobrand || false;
+                var lastPay = _getLastPay();
+                return lastPay !== null && lastPay !== 'visaCheckout' && cobrandEnabled;
+            }
+
+            function _isSVGEnabledInternal(enableSVG) {
+                var svgSupport = (enableSVG == "true") ? true : false;
+                return VISA_GLOBALS.isInternalIp && svgSupport ? true : false;
+            }
+
+            function getSupportedPays() {
+                try {
+                    var payArray = [],
+                        isAndroidMobile = _isAndroidMobile(),
+                        browsersMap = JSON.parse(VISA_GLOBALS.cxoEnvConfig.browsersMap) || {};
+
+                    if (isAndroidMobile && _isChromeBrowser() && _getChromeVersion() >= getCXOChromeSupportedVer()) {
+                        payArray = browsersMap["chrome"];
+                    } else if (isAndroidMobile && _isStockBrowser()) {
+                        payArray = browsersMap["sbrowser"];
+                    }
+                    return payArray;
+
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function _getBrowserProtocol() {
+                return String(_parentUrl).split(':')[0] || 'undefined';
+            }
+
+            
+            var getImpressionParams = function(allowEXO, buttonAnimation, config, disableSVGButton, disableSVGButtonAnimation) {
+                var merchantConfig = config.merchantConfig;
+                var fullEXO = allowEXO && _userRemembered;
+                var animated = (buttonAnimation || allowEXO) ? 'ANIMATED': 'STATIC';
+                var cardArt = (fullEXO) ? 'IN_BUTTON_XO' : // EXO only launches with card art
+                    (_userRemembered) ? 'CARD_ART': 'NO_CARD_ART'; // animated button
+                var isCXOEnabledDevice = _isCXOEnabledDevice(config.enableChassis);
+                var flowType = isCXOEnabledDevice ? 'MultiWallet' : (fullEXO ? 'EXO' : 'RXO');
+                var isCobrandDisplayed = _isCobrandDisplayed(config.enableChassisCobrand);
+                var incoming_traffic_source = 'web';
+                if(isHybrid) {
+                    if(new RegExp("\w*( VCO_SDK)\w*").test(window.navigator.userAgent)) {
+                        incoming_traffic_source = 'sdklite';
+                    } else {
+                        incoming_traffic_source = 'hybridplugin';
+                    }
+                }
+                var typeOfButton = disableSVGButton ? "PNG" : "SVG";
+                var userType = _isRecognized ? (_isAlwaysRemember) ? "Recognized-Username" : "Recognized" : "Unrecognized";
+                var guestCheckout = (merchantConfig && merchantConfig.guestCheckout) || false;
+                var SRCEligibility = _getSRCEligibility(guestCheckout);
+                var externalClientId = merchantConfig.externalClientId;
+                var cardArtSource = "VCO";
+
+                return {
+                    button_type: [typeOfButton, animated, cardArt].join('_'),
+                    flow: flowType,
+                    merchant_profile_name : (merchantConfig && merchantConfig.externalProfileId) || 'default',
+                    guest_checkout : guestCheckout,
+                    allow_enrollment : config.allowEnrollment || false,
+                    partner_name: isCXOEnabledDevice ? (getPayNameFromPaysMeta(_getLastPay()) || "undefined") : "undefined",
+                    vcop_enabled_device: isCXOEnabledDevice || false,
+                    cobrand_support: config.enableChassisCobrand,
+                    cobrand_displayed: !!(isCXOEnabledDevice && isCobrandDisplayed),
+                    incoming_traffic_source: incoming_traffic_source,
+                    disable_svg_button: disableSVGButton,
+                    disable_svg_button_animation : disableSVGButtonAnimation,
+                    user_type: userType,
+                    username_remembered: _isAlwaysRemember,
+                    src_eligibility: SRCEligibility,
+                    channel: 'merchant',
+                    rememberme_type: remembermeType,
+                    external_client_id: externalClientId,
+                    card_art_source: cardArtSource
+                };
+            };
+
+            var getVCOPParams = function(impressionParams, countryAllowsFingerprint, _userRemembered) {
+                if (!!impressionParams) {
+                    return {
+                        partnerName: impressionParams.partner_name,
+                        vcopEnabledDevice: impressionParams.vcop_enabled_device,
+                        coBrandSupport: impressionParams.cobrand_support,
+                        coBrandDisplayed: impressionParams.cobrand_displayed,
+                        cardArtSource: 'VCO',
+                        buttonType: impressionParams.button_type,
+                        finger_print_auth_enabled: countryAllowsFingerprint,
+                        stay_signed_in: getSsiStatus(),
+                        browser_protocol: _getBrowserProtocol(),
+                        button_state: 'enabled',
+                        known_user: _userRemembered
+                    }
+                }
+            };
+
+            
+            var createCookieAttributesGtmObj = function(canDropCookies, merchantCountryCode) {
+                return {
+                    event: 'cookie attributes',
+                    cookie_banner_displayed: _getCanShowCookieBanner(merchantCountryCode),
+                    cookie_policy_accepted : _hasConsented(),
+                    can_drop_nonessential_cookies : canDropCookies
+                };
+            };
+
+            var createUserTypeGtmObj = function() {
+                var userType = _isRecognized ? (_isAlwaysRemember) ? "Recognized - Username" : "Recognized" : "Unrecognized";
+                return {
+                    event: 'User type',
+                    event_action: 'User type',
+                    event_label : userType + " " + srcSystem
+                };
+            };
+
+            var createRememberMeGtmObj = function() {
+                return {
+                    event: 'Remember me',
+                    event_action: 'Remember me ' + remembermeType,
+                    event_label : _userRemembered + " " + srcSystem
+                };
+            };
+
+            var createSsiStatusGtmObj = function() {
+                var ssiStatus = getSsiStatus();
+                return {
+                    event: 'SSI Status',
+                    event_action: 'SSI Status',
+                    event_label : ssiStatus + " " + srcSystem
+                };
+            };
+
+            var createButtonImpression = function(impressionParams, visitId, corrId, remembered, apikey, countryAllowsFingerprint) {
+                var payload = _extend({
+                    event : 'Visa Checkout Button Impression',
+                    event_category : 'Merchant Site',
+                    event_action : 'Visa Checkout Impression',
+                    event_label : 'Visa Checkout Button Impression',
+                    button_state: 'enabled',
+                    knownuser : remembered,
+                    api_key : apikey,
+                    xo_visitid : visitId,
+                    correlation_id : corrId,
+                    external_client_id : _param('externalClientId') || undefined,
+                    stay_signed_in: getSsiStatus(),
+                    auth_type: 'undefined',
+                    browser_protocol: _getBrowserProtocol(),
+                    finger_print_auth_enabled: countryAllowsFingerprint
+                }, impressionParams);
+
+                return payload;
+            };
+
+            var _isSafari = function() {
+                var ua = _getUserAgent();
+                return (
+                    ua.indexOf('safari') > -1 &&
+                    ua.indexOf('chrome') === -1 &&
+                    ua.indexOf('crios') === -1
+                );
+            };
+
+            // US57100
+            var isChromeOniOS = function() {
+                return /iphone|ipod|ipad/i.test(_getUserAgent()) && /CriOS/i.test(_getUserAgent())
+            }
+
+            var ssiStatus = getSsiStatus();
+            var ermStatus = getErmStatus();
+            //Removed ssiStatus check to Enable ssi flow in VDCP
+            //the change has been introduced as part of [US67444]
+            var _isSRCFlowEnabled = function(configEnabled, ssiStatus, vmorcSSIEnabled) {
+              return !!( configEnabled && !vmorcSSIEnabled);
+            };
+
+            /* GTM eligibility check */
+            var _getSRCEligibility = function(guestCheckout){
+              var isSRCEligible = _isSRCFlowEnabled(isSRCflow, ssiStatus, _getCookie('iscAuthEnabled'));
+              if(isSRCEligible){
+                return 'SRC Eligible';
+              } else {
+                return 'SRC Not Eligible - ' + _srcIneligibilityReason(guestCheckout);
+              }
+            }
+
+            /* GTM SRC ineligibility reason */
+            var _srcIneligibilityReason = function(guestCheckout) {
+              if(!isSRCflow) {
+                return 'Global SRC Flag Off';
+              } else if (guestCheckout) {
+                return 'Guest Checkout Enabled';
+              } else if (isHybrid) {
+                return 'Hybrid User';
+              } else if (ssiStatus === 'OPTED_IN') {
+                return 'SSI Enabled User';
+              }
+              return 'undefined';
+            }
+
+            
+            var sendCookieAttributesAndButtonImpressionToGtm = function(impressionParams, visitId, corrId, remembered, apikey, canDropCookies, merchantCountryCode, countryAllowsFingerprint) {
+                var cookie_attributes_gtm_params = createCookieAttributesGtmObj(canDropCookies, merchantCountryCode);
+                GTM.push(cookie_attributes_gtm_params);
+
+                var button_impression = createButtonImpression(impressionParams, visitId, corrId, remembered, apikey, countryAllowsFingerprint);
+                GTM.push(button_impression);
+
+                var user_type_gtm = createUserTypeGtmObj();
+                GTM.push(user_type_gtm);
+
+                var remember_me = createRememberMeGtmObj();
+                GTM.push(remember_me);
+
+                var ssi_status = createSsiStatusGtmObj();
+                GTM.push(ssi_status);
+            };
+
+            var pushGtmData = function(data){
+               function postMsgToTarget (message) {
+                   window.parent.postMessage("pushGtmData--" + JSON.stringify(message), _postMessageTarget);
+               }
+
+               data.gtm = true;
+               postMsgToTarget(data);
+           };
+
+                function locationOrigin() {
+                    
+                    return window.location.origin || window.location.protocol + "//" + window.location.host + (window.location.port ? ':' + window.location.port : '');
+                }
+
+            (function(){
+                var corrId = correlationId,
+                    hasKnownCorrId = false;
+
+                try {
+                    _preloadCXOAssets();
+                    if (sessionStorage.getItem(ENUMS.VISIT_ID)) {
+                        visitId = sessionStorage.getItem(ENUMS.VISIT_ID);
+                    }
+                } catch(e) {
+                    console.warn(e);
+                }
+
+                var _receivePostMessage = function receivePostMessage(event) {
+                    try {
+                        var receivedMessage = (event.data && typeof event.data === "string") ? event.data : [],
+                            receivedData = {},
+                            locOrigin = locationOrigin();
+
+                        if (event.origin === _postMessageTarget) {
+                            if (receivedMessage.length > 0) {
+                                receivedData = JSON.parse(receivedMessage);
+                            }
+
+                            if (receivedData && receivedData.hasCorrId) {
+                                hasKnownCorrId = true;
+                                corrId = receivedData.corrId;
+                            }
+
+                            if(canDoSSIStorage()) {
+                                if(receivedData.type === 'rxo:thm:complete') {
+                                    var thmData = JSON.parse(sessionStorage.getItem("thmData")) || {};
+                                    thmData.isComplete = true;
+                                    sessionStorage.setItem('thmData', JSON.stringify(thmData));
+                                }
+                            }
+                        }
+
+                    } catch (e) {
+                        console.error(e);
+                    }
+                };
+
+                var parseRawMerchantConfig = function(merchConfigResponse) {
+                    var merchantConfig = {};
+                    try {
+                    merchantConfig = JSON.parse(merchConfigResponse);
+                    } catch (e) {
+                    console.warn('Error parsing merchant config.', e);
+                    }
+
+                    return merchantConfig;
+                };
+
+                
+                var postMessageOnConfigSuccess = function(options) {
+                    var additionalParams = options.additionalParams;
+                    var allowEXO = options.allowEXO;
+                    var animatedButton = options.animatedButton;
+                    var browserLocale = options.browserLocale;
+                    var canDropCookies = options.canDropCookies;
+                    var corrId = options.corrId;
+                    var disableRxo = options.disableRxo;
+                    var disableSVGButton = options.disableSVGButton;
+                    var disableSVGButtonAnimation = options.disableSVGButtonAnimation;
+                    var enableSVGInternal = options.enableSVGInternal;
+                    var hasKnownCorrId = options.hasKnownCorrId;
+                    var isCobrandEnabled = options.isCobrandEnabled;
+                    var isCXOEnabled = options.isCXOEnabled;
+                    var isPreloadAllowed = options.isPreloadAllowed;
+                    var merchantCountry = options.merchantCountry;
+                    var remembered = options.remembered;
+                    var responseText = options.responseText;
+                    var showRxoPopup = options.showRxoPopup;
+                    var srcBrandingOverride = options.srcBrandingOverride;
+
+                    var postMessageList = [];
+                    if(ssiStatus === 'OPTED_IN' || ermStatus === 'OPTED_IN') {
+                        var thmData = {
+                            'sessionId': 'vme_prod_001sGdofv_Mj7skXq50xuR3OI_wvD_IT6W8kDzVHNq7n0J0hhmENW0PIAhCnOeukixbmSo8AKOZd1kAkn16Nc3ax7vj',
+                            'startTime': Date.now(),
+                            'isComplete': false
+                        }
+
+                        if(canUseWebstorage()) {
+                            sessionStorage.setItem('thmData', JSON.stringify(thmData));
+                        }
+                        postMessageList.push('launchThmIframe--' + JSON.stringify({
+                            sessionId: 'vme_prod_001sGdofv_Mj7skXq50xuR3OI_wvD_IT6W8kDzVHNq7n0J0hhmENW0PIAhCnOeukixbmSo8AKOZd1kAkn16Nc3ax7vj',
+                            orgId: 'ge4f5xfn',
+                            ssiStatus: ssiStatus,
+                            ermStatus: ermStatus
+                        }));
+                        logTHM();
+                    }
+                    if (showRxoPopup) {
+                        postMessageList.push('showRxoPopup--{}');
+                    }
+
+                    if (!!disableRxo) {
+                        postMessageList.push('disableRxo--{}');
+                    }
+
+                    if (!!isCobrandEnabled) {
+                        postMessageList.push('enableCobrand--{}');
+                    }
+
+                    if (!!isCXOEnabled) {
+                        if (VISA_GLOBALS.cxoEnvConfig) {
+                           VISA_GLOBALS.cxoEnvConfig.gtmId = 'GTM-KD2D59';
+                        }
+                        postMessageList.push('enableCXO--' + JSON.stringify({
+                            cxoEnvConfig: VISA_GLOBALS.cxoEnvConfig,
+                            isCXOEnabled: true
+                        }));
+                    } else {
+                        postMessageList.push('enableCXO--' + JSON.stringify({
+                            isCXOEnabled: false
+                        }));
+                    }
+
+                    if (!!VISA_GLOBALS.isInternalIp){
+                        postMessageList.push('enableInternalIP--{}');
+                    }
+                    if(srcBrandingOverride) {
+                      postMessageList.push('srcBrandingOverride--' + JSON.stringify({
+                        srcBrandingOverride: srcBrandingOverride
+                      }));
+                    }
+
+                    if (!!enableSVGInternal){
+                        postMessageList.push('enableSVGInternal--{}');
+                    }
+
+                    if (!!disableSVGButton || !!disableSVGButtonAnimation){
+                        postMessageList.push('disableSVGButton--' + JSON.stringify({
+                            svg: disableSVGButton ? true : false,
+                            animation: disableSVGButtonAnimation ? true : false
+                        }));
+                    }
+
+                    if (!hasKnownCorrId) {
+                        postMessageList.push('storeCorrId--' + JSON.stringify({
+                            correlationId: corrId,
+                            merchantType: "v1"
+                        }));
+                    }
+                    if (remembered) {
+                        postMessageList.push('hideLearnMore--{}');
+                    }
+                    postMessageList.push('euroInfo--' + JSON.stringify({
+                        isEuroIp: (VISA_GLOBALS.isEuroIp),
+                        canDropCookies: (canDropCookies)
+                    }));
+
+                    postMessageList.push('vdcpAbTestingWeightedProbabilityInfo--' + JSON.stringify({
+                        vdcpAbTestingWeightedProbabilityValue: (VISA_GLOBALS.vdcpAbTestingWeightedProbabilityValue)
+                    }));
+
+                    postMessageList.push('countryCodeFromIp--' + JSON.stringify({
+                        countryCodeFromIp: VISA_GLOBALS.countryCodeFromIp
+                    }));
+
+                    // Track metrics in GTM
+                    postMessageList.push('trackConfigMetrics--' + JSON.stringify(
+                        Metrics.getMetricsByKey(ENUMS.CONFIG_METRICS)
+                    ));
+
+                    additionalParams = additionalParams || {};
+                    additionalParams.cookieAttributes = createCookieAttributesGtmObj(canDropCookies, merchantCountry);
+                    postMessageList.push('storeAdditionalXoParams--' + JSON.stringify(additionalParams));
+
+                    if (!!allowEXO) {
+                        var mutationNum = VISA_GLOBALS.exoMutationObserverWhitelisted ? 1 : 0;
+                        postMessageList.push('vxoAllowEXO--'+'{"exoMutationObserverWhitelisted":' + mutationNum + '}');
+                    } else if (animatedButton) {
+                        postMessageList.push('animatedButton--{}');
+                    }
+
+                    // CAUTION: DO NOT MOVE. Post after all other posts but before config
+                    if (isPreloadAllowed) {
+                        postMessageList.push('allowPreload--{}');
+                    }
+
+                    // passing SRC Configs
+                    postMessageList.push('src:configs:set--' + JSON.stringify(
+                      _extend(
+                        {},
+                        VISA_GLOBALS.srcEnvConfig,
+                        {
+                          cookieCountry: _getCookie('country_preference'),
+                          cookieLocale: _getCookie('locale'),
+                          isSRCflowEnabled: _isSRCFlowEnabled(
+                            VISA_GLOBALS.srcEnvConfig.isSRCflowEnabled,
+                            ssiStatus,
+                            _getCookie('iscAuthEnabled')
+                          )
+                        }
+                      )
+                    ));
+
+                    // NOTE: When this message is received, if the user has clicked on the button then the widget will
+                    // be launched. Therefore, messages that affect the way the widget is launched MUST be passed prior
+                    // to this config message -- particularly the disableRXO message
+                    var configMessage = 'merchantConfig--' + responseText;
+                    if (browserLocale) {
+                        configMessage += ('--{}--' + JSON.stringify({
+                            vInitRequest: { browserLocale: browserLocale }
+                        }));
+                    }
+                    postMessageList.push(configMessage);
+
+
+
+                    window.parent.postMessage(postMessageList.join('+-+-+'), _postMessageTarget);
+                };
+
+                var handleMerchantProfileResponse = function(responseText) {
+                    var config = parseRawMerchantConfig(responseText); // store merchant config
+                    var merchantCountry = config.merchantConfig.merchantCountryCode;
+                    var allowSrc = config.allowSRC;
+                    var srcBrandingOverride = config.srcBrandingOverride;
+
+                    config.enableChassisCobrand = false;
+                    config.enableChassis = false;
+                    // EU cookie consent compliance check
+                    var canDropCookies = _getCanDropCookies(merchantCountry);
+                    var supportEXO = _isExoButtonSupported(canDropCookies);
+                    var allowEXO = _allowFullExo(supportEXO, config);
+                    var launchEXO = _canLaunchExo(supportEXO, config);
+                    var useAnimatedButton = _canUseAnimatedButton(launchEXO, allowEXO);
+                    var isChassisEnabledMerchant = _isChassisEnabledByMerchant(config);
+                    var isCXOEnabled = _isChassisEnabledByMerchantAndVisa(isChassisEnabledMerchant, VISA_GLOBALS.isChassisFlowEnabled);
+                    var isCobrandEnabled = _isCobrandEnabledByMerchant(config.enableChassisCobrand, isCXOEnabled);
+                    var enableSVGInternal = _isSVGEnabledInternal(VISA_GLOBALS.enableSVGInternal);
+                    var isMerchantOnPreloadWhitelist = _isMerchantOnPreloadWhitelist(config);
+                    var isPreloadAllowed = _isPreloadAllowed(isMerchantOnPreloadWhitelist);
+
+                    // honor exclusion list attribute unless it is on the whitelist
+                    var disableRxo = (VISA_GLOBALS.rxoExclusion && !VISA_GLOBALS.rxoInternalWhitelist);
+
+
+                    // POPUP is going to be used to disable popup feature.  It's counter-intuitive but it's the only mechanism we have
+                    // so we don't have to enable this feature for all merchants.  Rather, since all merchants are currently using LIGHTBOX
+                    // or OVERLAY as the widgetStyle value we will change the profile setting to POPUP only to disable the feature for a merchant.
+                    var shouldShowPopup = config.merchantConfig.widgetStyle && config.merchantConfig.widgetStyle !== 'POPUP';
+
+                    //checking for iOS Chrome and Safari - US57100
+                    var showRxoPopup = (VISA_GLOBALS.rxoPopup && shouldShowPopup && !allowEXO) && (isChromeOniOS() || _isSafari());
+
+                    // For EUROPE use case, if need consent, and user has never consented before or consented not to drop cookies
+                    // force to show RXO always.
+                    if(_requireConsent(merchantCountry)
+                        && (_neverConsented() || _getCanDropCookies(merchantCountry) === false)) {
+                        disableRxo = false;
+                    }
+
+                    var miniRXO = (_param('miniRXO') === "true") ? true : false;
+                    var disableSVGButton = _isSVGDisabledByMerchant(config.disableSVGbutton);
+                    var disableSVGButtonAnimation = _isSVGAnimationDisabledByMerchant(config.disableSVGbuttonAnimation);
+                    var enableSVGForVCOP = _isCobrandDisplayed(config.enableChassisCobrand);
+                    var countryAllowsFingerprint = _isCountryAllowsFingerprint(config.countryAllowsFingerprint);
+
+                    setRxoStorageIdsAndFlags(canDropCookies, visitId, correlationId, showRxoPopup, miniRXO, allowEXO);
+
+                    // all conditions have been evaluated, so log the final button impression
+                    // must come after postMessage or else a gtm error could occur pre-postmessage, causing postMessage to not happen
+                    var impressionParams = getImpressionParams(allowEXO, useAnimatedButton, config, disableSVGButton, disableSVGButtonAnimation);
+                    sendCookieAttributesAndButtonImpressionToGtm(impressionParams, visitId, corrId, _userRemembered,
+                        _apikey, canDropCookies, merchantCountry, countryAllowsFingerprint
+                    );
+                    impressionParams.vcopParams = getVCOPParams(impressionParams, countryAllowsFingerprint, _userRemembered);
+
+                    postMessageOnConfigSuccess({
+                      additionalParams: impressionParams,
+                      allowEXO: allowEXO,
+                      animatedButton: useAnimatedButton,
+                      browserLocale: VISA_GLOBALS.browserLocale,
+                      canDropCookies: canDropCookies,
+                      corrId: corrId,
+                      disableRxo: disableRxo,
+                      disableSVGButton: disableSVGButton,
+                      disableSVGButtonAnimation: disableSVGButtonAnimation,
+                      enableSVGInternal: enableSVGInternal,
+                      hasKnownCorrId: hasKnownCorrId,
+                      isCobrandEnabled: isCobrandEnabled,
+                      isCXOEnabled: isCXOEnabled,
+                      isPreloadAllowed: isPreloadAllowed,
+                      merchantCountry: merchantCountry,
+                      remembered: _userRemembered,
+                      responseText: responseText,
+                      showRxoPopup: showRxoPopup,
+                      srcBrandingOverride: srcBrandingOverride
+                    });
+
+                    // Setup complete; preload RXO assets if EXO is not chosen
+                    //if (!allowEXO && !VISA_GLOBALS.allowPreload) { _preloadRxoAssets(); }
+                    if (!allowEXO && !isPreloadAllowed) { _preloadRxoAssets(); }
+                };
+
+                // CAL logging
+                function logButtonLoad() {
+                    var url = locationOrigin() + '/logging/logEvent',
+                        loggingData = {
+                            'CO': 'JSSDK',
+                            'O': 'JSSDK',
+                            'T': 'E',
+                            'LL': 'INFO',
+                            'RTY': 'OUT',
+                            'E': 'button_load',
+                            'S': '200',
+                            'TS': new Date().getTime(),
+                            'U': '/wallet-services-web/xo/button.png',
+                            'x-merchant-api-key':  _apikey,
+                            'XCL': _param('externalClientId'),
+                            'Country': _param('settings%5BcountryCode%5D')
+                        };
+                    var rLogging = new XMLHttpRequest();
+                    rLogging.open('POST', url, true);
+                    rLogging.setRequestHeader('Accept','application/json');
+                    rLogging.setRequestHeader('Content-type','application/json');
+                    rLogging.setRequestHeader('X-CORRELATION-ID', corrId);
+                    rLogging.setRequestHeader('X-VISIT-ID', visitId);
+                    rLogging.send(JSON.stringify(loggingData));
+                }
+
+                //log THM call
+                function logTHM() {
+                    var url = locationOrigin() + '/logging/logEvent',
+                        loggingData = {
+                            'CO': 'JSSDK',
+                            'O': 'JSSDK',
+                            'T': 'E',
+                            'E': 'THM',
+                            'TS': new Date().getTime(),
+                            'U': '/wallet-services-web/xo/button.png',
+                            'x-merchant-api-key':  _apikey,
+                            'Country': _param('settings%5BcountryCode%5D')
+                        };
+                    var rLogging = new XMLHttpRequest();
+                    rLogging.open('POST', url, true);
+                    rLogging.setRequestHeader('Accept','application/json');
+                    rLogging.setRequestHeader('Content-type','application/json');
+                    rLogging.setRequestHeader('X-CORRELATION-ID', corrId);
+                    rLogging.setRequestHeader('X-VISIT-ID', visitId);
+                    rLogging.send(JSON.stringify(loggingData));
+                }
+
+                if (window.addEventListener) {
+                    window.addEventListener("message", _receivePostMessage);
+                } else if (window.attachEvent) {
+                    window.attachEvent("onmessage", _receivePostMessage);
+                }
+                window.parent.postMessage('checkCorrId--{"target":"'+ locationOrigin() +'", "frameName":"VmeCheckout", "merchantType":"v1"}', _postMessageTarget);
+                logButtonLoad();
+
+            window.vxo_button_config = window.vxo_button_config || {};
+
+            if (!_apikey ||
+                !!window.vxo_button_config.lockbutton) {
+                    window.parent.postMessage('lockButton--{}', _postMessageTarget);
+                    return;
+                }
+
+                var requestUrl = locationOrigin() + '/wallet-services-web/merchant?profileOwner=' +
+                    _param('externalClientId') + '&profileName=' + _param('externalProfileId');
+
+                var r = new XMLHttpRequest();
+                r.open('GET', requestUrl, true);
+                r.setRequestHeader('Accept','application/json');
+                r.setRequestHeader('Content-type','application/json');
+                r.setRequestHeader('API_KEY', _apikey);
+                r.setRequestHeader('X-MERCHANT-API-KEY', _apikey);
+                r.setRequestHeader('X-CORRELATION-ID', corrId);
+                r.onreadystatechange = function() {
+                    if (r.readyState == 4) {
+                        Metrics.setEndTime(ENUMS.CONFIG_METRICS);
+                        if (r.status === 401) {
+                            
+                            // have to send it with this admittedly odd format to match our existing
+                            // post-message handling in the wrapper post_message.js
+                            window.parent.postMessage('hide--{}', _postMessageTarget);
+                        } else if (r.status === 400 || r.status === 404) {
+                            window.parent.postMessage('lockButton--{}', _postMessageTarget);
+                        } else if (r.status === 200) {
+                            handleMerchantProfileResponse(r.responseText);
+                        }
+                    }
+                };
+
+                Metrics.setStartTime(ENUMS.CONFIG_METRICS);
+                r.send();
+            })();
+        </script>
+    <link rel="prefetch" href="https://secure.checkout.visa.com/checkout-widget/resources/css/bundle-rxo.min.d89641da59c61f0b1add1097e30c7178.css"><link rel="prefetch" href="https://secure.checkout.visa.com/checkout-widget/resources/js/bundle-common.min.12da06ec9c0ca031e7673b9139bd9d6a.js"><link rel="prefetch" href="https://secure.checkout.visa.com/checkout-widget/resources/js/bundle-rxo.min.c383b8dbb281929f8c38d5721fc70680.js"></head>
+
+    <body class="v-shared-frame v-shared-elements v-shared-compact v-shared-checkout" id="v-checkout">
+    <script type="text/javascript">var _cf = _cf || []; _cf.push(['_setFsp', true]); _cf.push(['_setBm', true]); _cf.push(['_setAu', '/public/a6de488b2173b3c76f356a0ac2319']);</script><script type="text/javascript" src="./a6de488b2173b3c76f356a0ac2319"></script>
+
+</body></html>
