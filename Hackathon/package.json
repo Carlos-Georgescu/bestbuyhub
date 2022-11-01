@@ -40,8 +40,8 @@
   "deprecated": false,
   "description": "Representation of a geographic point for node.js and the browser",
   "devDependencies": {
-    "istanbul": "~0.1.37",
-    "mocha": "~1.11.0"
+    "istanbul": "~0.4.5",
+    "mocha": "~10.1.0"
   },
   "engines": {
     "node": ">= 0.8.0"
